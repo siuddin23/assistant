@@ -1,0 +1,24 @@
+[project]
+name = "assistant"
+version = "0.1.0"
+description = "AI assistant performance marketing: laporan harian Meta Ads, omzet, dan CS"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=1.0",
+    "gspread>=6.0",
+    "pyyaml>=6.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

@@ -1,0 +1,36 @@
+name: Laporan harian
+
+on:
+  schedule:
+    - cron: "17 0 * * *"   # 07:17 WIB setiap hari (UTC+7)
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Tanggal laporan YYYY-MM-DD (kosong = kemarin)"
+        required: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: Buat & kirim laporan
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          WHATSAPP_TARGET: ${{ secrets.WHATSAPP_TARGET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            python -m assistant --date "${{ inputs.date }}"
+          else
+            python -m assistant
+          fi

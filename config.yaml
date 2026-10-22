@@ -1,0 +1,55 @@
+# Konfigurasi AI Assistant Performance Marketing.
+# Rahasia (token/API key) TIDAK disimpan di sini — lihat .env.example.
+
+timezone: Asia/Jakarta
+
+sales:
+  spreadsheet_id: 16Mla00sapW6GKX60kb5Wmaq6zaFDLHxISWxGT5pfy-0
+  # Satu tab per bulan bernama JANUARI ... DESEMBER. Baris 1-4 = judul/header/rekap.
+  first_data_row: 5
+  columns:
+    cs: A            # kode CS (pic)
+    date: B          # dd/mm/yyyy
+    product_type: E  # Type (DVN, SGLOW, NV, ...)
+    payment: F       # TRX: TF / COD / QR / CC
+    omzet_f: X
+    omzet_o: Y
+    omzet_r: Z
+    category: AB     # kolom "hio": F / O / R
+    status: AH       # status pengiriman
+  products:          # kolom qty per produk
+    DVN: J
+    SGLOW: L
+    Novia: N
+    Erojan: P
+    Coffiy: R
+    BLZ: T
+    EVN: V
+
+meta:
+  api_version: v24.0
+  ad_accounts:
+    - id: "1124660662017489"   # SVO HARYS WIJAYA - 02 (CC)
+    - id: "3815355038729783"   # EVPO - SP - SVO - Harys Wijaya Novia HKM - 1
+    - id: "913832360985977"    # SVO HARYS WIJAYA - 03
+
+# Ambang alert — SEMENTARA, sesuaikan dengan target bisnis Anda.
+targets:
+  mer_min: 2.5              # omzet total ÷ spend
+  roas_meta_min: 1.0        # ROAS versi Meta per akun
+  cpp_max: 1500000          # biaya per purchase (Rp) per akun
+  ctr_link_min: 0.006       # 0,6%
+  frequency_max: 2.5        # frekuensi harian per akun
+  omzet_drop_pct: 0.20      # alert jika omzet turun >= 20% vs rata-rata 7 hari
+  spend_change_pct: 0.30    # alert jika spend berubah >= 30% vs rata-rata 7 hari
+  min_spend_for_alert: 300000
+
+ai_insight:
+  enabled: true
+  context: >-
+    Brand Glowlab (by Silvia). Produk: DVN, SGLOW, Novia (NV), Erojan, Coffiy, BLZ, EVN.
+    Iklan Meta mengarah ke closing via CS WhatsApp. Kategori omzet di sheet: F, O, R.
+
+notify:
+  telegram: true
+  whatsapp: true
