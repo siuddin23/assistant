@@ -37,6 +37,12 @@ export default async function IntegrationsPage() {
             Menyalin order dari tab bulanan ke database. Aman dijalankan berulang: baris yang sama diperbarui, tidak diduplikasi. Order yang sudah diedit di dashboard tidak ditimpa.
             {lastSync && <> Sinkron terakhir: <b>{lastSync.source.replace("spreadsheet:", "")}</b>, {lastSync.createdAt.toLocaleString("id-ID", { timeZone: "Asia/Jakarta", dateStyle: "medium", timeStyle: "short" })}.</>}
           </p>
+          <div className="mx-4 mt-3 rounded-lg bg-bg p-3 text-xs text-muted">
+            <b className="text-ink">Sinkron otomatis tanpa Google Cloud (disarankan):</b> pasang Apps Script di spreadsheet
+            (Ekstensi → Apps Script) dari file <code>dashboard/apps-script/sync-ke-dashboard.gs</code>. Isi
+            <code> DASHBOARD_URL</code> = <code>{origin}</code> dan <code>INGEST_TOKEN</code> dari env Vercel, lalu jalankan
+            fungsi <code>pasangJadwal</code> sekali. Spreadsheet akan mengirim data setiap jam.
+          </div>
           <SyncForm tabs={MONTH_TABS} defaults={defaults} configured={!!process.env.GOOGLE_SERVICE_ACCOUNT_JSON && !!process.env.SPREADSHEET_ID} />
         </Section>
 

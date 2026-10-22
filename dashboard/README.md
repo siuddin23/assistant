@@ -50,9 +50,9 @@ Setiap deploy otomatis menjalankan migrasi database (`vercel-build`) dan membuat
 | `SESSION_SECRET` | string acak ≥ 32 karakter |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | admin pertama (hapus password setelah login) |
 | `SPREADSHEET_ID` | `16Mla00sapW6GKX60kb5Wmaq6zaFDLHxISWxGT5pfy-0` |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON service account, untuk sinkron otomatis spreadsheet (opsional; tanpa ini upload tab sheet lewat Impor file) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | opsional: hanya bila sinkron sheet memakai service account, bukan Apps Script |
 | `GLOBEMERCE_WEBHOOK_TOKEN` | string acak, bagian dari URL webhook |
-| `INGEST_TOKEN` | string acak, untuk job Python mengirim spend Meta |
+| `INGEST_TOKEN` | string acak, dipakai Apps Script spreadsheet & job Python (spend Meta) |
 | `CRON_SECRET` | string acak, untuk sinkron sheet terjadwal |
 
 ### Memasukkan data (menu Impor file)
@@ -66,10 +66,19 @@ Setiap deploy otomatis menjalankan migrasi database (`vercel-build`) dan membuat
 
 Urutan yang disarankan pertama kali: spreadsheet → Globemerce → Everpro → customer. Semua impor aman diulang tanpa membuat duplikat.
 
-### Sinkron otomatis (opsional)
-1. **Spreadsheet tiap jam**: isi `GOOGLE_SERVICE_ACCOUNT_JSON` di Vercel, lalu share sheet ke email service account. Di GitHub repo → Settings → Secrets → Actions, isi `DASHBOARD_URL` dan `CRON_SECRET`.
-2. **Globemerce real-time**: salin URL webhook dari menu **Integrasi** ke pengaturan webhook Globemerce. Petakan field-nya sekali setelah event pertama masuk.
-3. **Spend Meta Ads harian**: isi secret `DASHBOARD_URL` dan `INGEST_TOKEN` di GitHub.
+### Sinkron otomatis spreadsheet (tiap jam, tanpa Google Cloud)
+Spreadsheet mengirim datanya sendiri ke dashboard lewat Google Apps Script; sheet tetap privat.
+1. Buka spreadsheet DATABASE HARYS → **Ekstensi → Apps Script**.
+2. Hapus isi `Code.gs`, lalu tempel isi file [`apps-script/sync-ke-dashboard.gs`](apps-script/sync-ke-dashboard.gs).
+3. Di bagian atas script, isi `DASHBOARD_URL` (URL Vercel) dan `INGEST_TOKEN` (sama dengan env Vercel).
+4. Pilih fungsi **pasangJadwal** di toolbar, klik **Run**, lalu izinkan akses saat diminta. Sinkron pertama langsung berjalan, dan selanjutnya otomatis setiap jam (tab bulan ini + bulan lalu).
+5. Sinkron manual: menu **Dashboard → Sinkron sekarang** di spreadsheet.
+
+Alternatif lain: service account Google Cloud (`GOOGLE_SERVICE_ACCOUNT_JSON`), lalu tombol **Sinkron sekarang** di menu Integrasi, ditambah GitHub Actions `sync-sheet.yml` (secret `DASHBOARD_URL` + `CRON_SECRET`).
+
+### Sumber lain
+- **Globemerce real-time**: salin URL webhook dari menu **Integrasi** ke pengaturan webhook Globemerce. Petakan field-nya sekali setelah event pertama masuk.
+- **Spend Meta Ads harian**: isi secret `DASHBOARD_URL` dan `INGEST_TOKEN` di GitHub, untuk job laporan harian.
 
 ## Pengembangan lokal
 

@@ -14,7 +14,7 @@ export function SyncForm({ tabs, defaults, configured }: { tabs: string[]; defau
         ))}
       </div>
       <button className="btn-primary" disabled={pending || !configured}>{pending ? "Menyinkron… (bisa 1–2 menit)" : "Sinkron sekarang"}</button>
-      {!configured && <p className="text-xs text-danger">Isi GOOGLE_SERVICE_ACCOUNT_JSON dan SPREADSHEET_ID di environment, lalu share spreadsheet ke email service account.</p>}
+      {!configured && <p className="text-xs text-muted">Tombol ini butuh GOOGLE_SERVICE_ACCOUNT_JSON (service account Google Cloud). Kalau memakai Apps Script di atas, tombol ini tidak diperlukan.</p>}
       {state.error && <p className="text-sm text-danger">{state.error}</p>}
       {state.ok && (
         <ul className="text-sm">
