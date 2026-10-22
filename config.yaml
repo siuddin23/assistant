@@ -35,7 +35,10 @@ meta:
 
 # Ambang alert — SEMENTARA, sesuaikan dengan target bisnis Anda.
 targets:
-  mer_min: 2.5              # omzet total ÷ spend
+  # MER akuisisi = omzet customer baru (O + F) ÷ spend. Repeat order (R) tidak dihitung.
+  # Break-even = 1 ÷ margin kontribusi per order baru. Contoh margin 50% -> break-even 2,0x.
+  mer_akuisisi_min: 1.2     # SEMENTARA — isi setelah margin diketahui
+  cac_max: 1300000          # biaya iklan maksimal per customer baru (Rp)
   roas_meta_min: 1.0        # ROAS versi Meta per akun
   cpp_max: 1500000          # biaya per purchase (Rp) per akun
   ctr_link_min: 0.006       # 0,6%
@@ -48,7 +51,8 @@ ai_insight:
   enabled: true
   context: >-
     Brand Glowlab (by Silvia). Produk: DVN, SGLOW, Novia (NV), Erojan, Coffiy, BLZ, EVN.
-    Iklan Meta mengarah ke closing via CS WhatsApp. Kategori omzet di sheet: F, O, R.
+    Iklan Meta mengarah ke closing via CS WhatsApp. Kategori omzet: O = order baru, F = follow up (lead lama yang akhirnya closing),
+    R = repeat order. Efektivitas iklan dinilai dari O + F (MER akuisisi & CAC), bukan omzet total.
 
 notify:
   telegram: true

@@ -40,8 +40,12 @@ def build_metrics(sd: sales.SalesData, ads: list[meta_ads.AdRow], d: date) -> di
         "per_account": per_account,
         "mer": safe_div(day_sales["omzet"], day_ads["spend"]),
         "mer_mtd": safe_div(mtd_sales["omzet"], mtd_ads["spend"]),
+        "mer_acq": safe_div(day_sales["omzet_acq"], day_ads["spend"]),
+        "mer_acq_mtd": safe_div(mtd_sales["omzet_acq"], mtd_ads["spend"]),
+        "cac": safe_div(day_ads["spend"], day_sales["orders_acq"]),
+        "cac_mtd": safe_div(mtd_ads["spend"], mtd_sales["orders_acq"]),
+        "repeat_share_mtd": safe_div(mtd_sales["by_cat"]["R"], mtd_sales["omzet"]),
         "ad_cost_ratio": safe_div(day_ads["spend"], day_sales["omzet"]),
-        "cost_per_order": safe_div(day_ads["spend"], day_sales["orders"]),
         "projection_omzet": mtd_sales["omzet"] / d.day * days_in_month,
         "projection_spend": mtd_ads["spend"] / d.day * days_in_month,
         "issues": dict(sd.issues),
@@ -50,8 +54,10 @@ def build_metrics(sd: sales.SalesData, ads: list[meta_ads.AdRow], d: date) -> di
 
 def build_alerts(m: dict, t: dict) -> list[str]:
     a = []
-    if m["mer"] is not None and m["mer"] < t["mer_min"]:
-        a.append(f"MER {fmt_ratio(m['mer'])} di bawah target {fmt_ratio(t['mer_min'])}")
+    if m["mer_acq"] is not None and m["mer_acq"] < t["mer_akuisisi_min"]:
+        a.append(f"MER akuisisi {fmt_ratio(m['mer_acq'])} di bawah target {fmt_ratio(t['mer_akuisisi_min'])}")
+    if m["cac"] is not None and m["cac"] > t["cac_max"]:
+        a.append(f"Biaya per customer baru {fmt_idr(m['cac'])} di atas batas {fmt_idr(t['cac_max'])}")
     if m["omzet_vs_7d"] is not None and m["omzet_vs_7d"] <= -t["omzet_drop_pct"]:
         a.append(f"Omzet turun {fmt_pct(-m['omzet_vs_7d'])} dari rata-rata 7 hari")
     if m["spend_vs_7d"] is not None and abs(m["spend_vs_7d"]) >= t["spend_change_pct"]:
@@ -80,7 +86,8 @@ def render(m: dict, alerts: list[str], insight: str | None = None) -> str:
     L += ["*💰 OMZET (spreadsheet)*",
           f"Omzet: {fmt_idr(s['omzet'])}{vs(m['omzet_vs_7d'])}",
           f"Order: {s['orders']} | AOV {fmt_idr(s['aov'])}",
-          "Kategori: " + " · ".join(f"{k} {fmt_idr(v)}" for k, v in s["by_cat"].items()),
+          *[f"• {sales.CATEGORY_LABELS[k]} ({k}): {fmt_idr(s['by_cat'][k])} · {s['orders_by_cat'][k]} order"
+            for k in ("O", "F", "R")],
           "Bayar: " + " · ".join(f"{k} {v}" for k, v in s["by_payment"].most_common()), ""]
 
     L += ["*📣 META ADS*",
@@ -98,13 +105,15 @@ def render(m: dict, alerts: list[str], insight: str | None = None) -> str:
     L.append("")
 
     L += ["*🎯 GABUNGAN (omzet riil vs iklan)*",
-          f"MER (omzet ÷ spend): {fmt_ratio(m['mer'])}",
-          f"Rasio biaya iklan: {fmt_pct(m['ad_cost_ratio'])} dari omzet",
-          f"Biaya iklan per order: {fmt_idr(m['cost_per_order'] or 0)}", ""]
+          f"MER akuisisi (omzet O+F ÷ spend): {fmt_ratio(m['mer_acq'])}",
+          f"Biaya per customer baru (CAC): {fmt_idr(m['cac'] or 0)} ({s['orders_acq']} order O+F)",
+          f"MER total (termasuk repeat): {fmt_ratio(m['mer'])}",
+          f"Rasio biaya iklan: {fmt_pct(m['ad_cost_ratio'])} dari omzet total", ""]
 
     L += [f"*📅 BULAN INI (1–{d.day})*",
           f"Omzet {fmt_idr(mtd['omzet'])} · {mtd['orders']} order · spend {fmt_idr(adm['spend'])}",
-          f"MER {fmt_ratio(m['mer_mtd'])} · ROAS Meta {fmt_ratio(adm['roas_meta'])}",
+          f"MER akuisisi {fmt_ratio(m['mer_acq_mtd'])} · CAC {fmt_idr(m['cac_mtd'] or 0)} · MER total {fmt_ratio(m['mer_mtd'])}",
+          f"Porsi repeat order: {fmt_pct(m['repeat_share_mtd'])} omzet · ROAS Meta {fmt_ratio(adm['roas_meta'])}",
           f"Proyeksi akhir bulan: omzet {fmt_idr(m['projection_omzet'])}, spend {fmt_idr(m['projection_spend'])}", ""]
 
     L.append("*🎧 CS (kemarin | bulan ini)*")

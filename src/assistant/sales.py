@@ -15,6 +15,9 @@ from pathlib import Path
 from .util import cell, parse_date, parse_idr, sheet_name_for
 
 CATEGORIES = ("F", "O", "R")
+CATEGORY_LABELS = {"O": "Order baru", "F": "Follow up", "R": "Repeat order"}
+# Omzet yang dihasilkan iklan (customer baru). Repeat order tidak dihitung ke efektivitas iklan.
+ACQUISITION = ("O", "F")
 
 
 @dataclass
@@ -117,6 +120,7 @@ def summarize(orders: list[Order]) -> dict:
         "orders": len([o for o in orders if o.omzet > 0]),
         "omzet": sum(o.omzet for o in orders),
         "by_cat": {k: sum(o.omzet_by_cat[k] for o in orders) for k in CATEGORIES},
+        "orders_by_cat": Counter(o.category for o in orders if o.omzet > 0 and o.category in CATEGORIES),
         "by_payment": Counter(o.payment or "?" for o in orders if o.omzet > 0),
         "by_cs": defaultdict(lambda: {"orders": 0, "omzet": 0.0, "cat": Counter()}),
         "returns": sum(1 for o in orders if any(w in o.status.lower() for w in ("gagal", "dikembalikan", "retur"))),
@@ -132,4 +136,6 @@ def summarize(orders: list[Order]) -> dict:
         for p, q in o.products.items():
             s["products"][p] += q
     s["aov"] = s["omzet"] / s["orders"] if s["orders"] else 0.0
+    s["omzet_acq"] = sum(s["by_cat"][k] for k in ACQUISITION)
+    s["orders_acq"] = sum(s["orders_by_cat"][k] for k in ACQUISITION)
     return s

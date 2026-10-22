@@ -98,9 +98,13 @@ def test_report_end_to_end():
     m = report.build_metrics(sd, ads, d)
     assert m["mer"] == 2.0
     assert m["mer_mtd"] == 2.0
+    assert m["mer_acq"] == 0.5          # hanya F (Rp1 jt) ÷ spend Rp2 jt
+    assert m["cac"] == 2e6              # 1 order baru/follow up
+    assert m["repeat_share_mtd"] == 5 / 6
     assert m["sales_mtd"]["orders"] == 3
     alerts = report.build_alerts(m, CFG["targets"])
-    assert any("MER" in a for a in alerts)
+    assert any("MER akuisisi" in a for a in alerts)
+    assert any("customer baru" in a for a in alerts)
     text = report.render(m, alerts)
     assert "LAPORAN HARIAN" in text and "Akun A" in text
 

@@ -3,8 +3,8 @@
 Asisten otomatis yang setiap pagi mengirim laporan ke **Telegram** dan **WhatsApp**:
 
 - **Meta Ads**: spend, purchase, CPP, ROAS Meta, CPM, CTR link, CPC, hook rate, hold rate, frekuensi, leads (total dan per akun)
-- **Omzet riil** dari spreadsheet harian (per kategori F/O/R dan per metode bayar)
-- **MER** (omzet riil ÷ spend), rasio biaya iklan, biaya iklan per order, dan proyeksi akhir bulan
+- **Omzet riil** dari spreadsheet harian, per kategori (O = order baru, F = follow up, R = repeat order) dan per metode bayar
+- **MER akuisisi** (omzet O+F ÷ spend) dan **CAC** (spend ÷ jumlah customer baru) sebagai KPI utama iklan, ditambah MER total, porsi repeat order, dan proyeksi akhir bulan. Repeat order tidak dihitung sebagai hasil iklan.
 - **Performa CS**: order dan omzet per CS, kemarin dan bulan berjalan
 - **Alert** ketika angka melewati ambang di `config.yaml`
 - **Cek kualitas data** sheet (baris tanpa tanggal, tanpa kode CS, atau kategori F/O/R yang tidak cocok)
