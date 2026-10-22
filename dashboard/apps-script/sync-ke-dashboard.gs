@@ -4,9 +4,13 @@
  * Cara pasang (sekali):
  * 1. Buka spreadsheet -> Extensions / Ekstensi -> Apps Script.
  * 2. Hapus isi Code.gs, tempel seluruh file ini, lalu isi DASHBOARD_URL dan INGEST_TOKEN di bawah.
- * 3. Pilih fungsi "pasangJadwal" di toolbar, klik Run, lalu izinkan akses (Review permissions -> Allow).
+ * 3. Simpan (ikon disket / Ctrl+S).
+ * 4. Pasang jadwal, pilih salah satu:
+ *    a. Di toolbar Apps Script, pilih fungsi "pasangJadwal" pada dropdown di sebelah tombol Debug, lalu klik Run; atau
+ *    b. Muat ulang (refresh) spreadsheet, lalu klik menu "Dashboard" -> "Pasang jadwal otomatis (tiap jam)".
+ *    Izinkan akses saat diminta (Review permissions -> Allow).
  *    Ini menjalankan sinkron pertama dan memasang jadwal otomatis setiap jam.
- * Sinkron manual kapan saja: pilih fungsi "sinkronSekarang" -> Run, atau menu "Dashboard" di spreadsheet.
+ * Sinkron manual kapan saja: menu "Dashboard" -> "Sinkron sekarang".
  */
 const DASHBOARD_URL = "https://GANTI-DENGAN-URL-VERCEL.vercel.app";
 const INGEST_TOKEN = "GANTI-DENGAN-INGEST_TOKEN";
@@ -47,7 +51,15 @@ function pasangJadwal() {
 
 /** Menu "Dashboard" di spreadsheet untuk sinkron manual. */
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu("Dashboard").addItem("Sinkron sekarang", "menuSinkron").addToUi();
+  SpreadsheetApp.getUi()
+    .createMenu("Dashboard")
+    .addItem("Sinkron sekarang", "menuSinkron")
+    .addItem("Pasang jadwal otomatis (tiap jam)", "menuPasangJadwal")
+    .addToUi();
+}
+
+function menuPasangJadwal() {
+  SpreadsheetApp.getUi().alert("Jadwal tiap jam terpasang.\n\n" + pasangJadwal());
 }
 
 function menuSinkron() {
