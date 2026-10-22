@@ -28,6 +28,8 @@ jobs:
           FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
           WHATSAPP_TARGET: ${{ secrets.WHATSAPP_TARGET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
         run: |
           if [ -n "${{ inputs.date }}" ]; then
             python -m assistant --date "${{ inputs.date }}"

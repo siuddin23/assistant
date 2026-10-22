@@ -52,6 +52,14 @@ def main(argv: list[str] | None = None) -> int:
         for acc in cfg["meta"]["ad_accounts"]:
             ads += meta_ads.fetch_insights(token, acc["id"], start, d, "account", cfg["meta"]["api_version"])
 
+    if not args.dry_run and os.environ.get("DASHBOARD_URL") and os.environ.get("INGEST_TOKEN"):
+        from .dashboard import push_ad_spend
+        try:
+            n = push_ad_spend(os.environ["DASHBOARD_URL"], os.environ["INGEST_TOKEN"], ads)
+            print(f"[dashboard] {n} baris spend terkirim")
+        except Exception as e:  # dashboard mati jangan menggagalkan laporan
+            print(f"[dashboard] {e}", file=sys.stderr)
+
     metrics = report.build_metrics(sd, ads, d)
     alerts = report.build_alerts(metrics, cfg["targets"])
 

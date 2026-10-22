@@ -1,5 +1,10 @@
 # AI Assistant — Performance Marketing
 
+Repo ini berisi dua bagian:
+
+- **`dashboard/`**: web app database & dashboard untuk admin dan tim (order, pengiriman, retur, rekonsiliasi COD), terhubung ke spreadsheet, Globemerce, dan Everpro. Panduan deploy ada di [`dashboard/README.md`](dashboard/README.md).
+- **Laporan harian** (folder `src/assistant/`): ringkasan Meta Ads, omzet, dan CS yang dikirim ke Telegram/WhatsApp setiap pagi. Penjelasannya di bawah.
+
 Asisten otomatis yang setiap pagi mengirim laporan ke **Telegram** dan **WhatsApp**:
 
 - **Meta Ads**: spend, purchase, CPP, ROAS Meta, CPM, CTR link, CPC, hook rate, hold rate, frekuensi, leads (total dan per akun)
