@@ -23,7 +23,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         actions={<Suspense><RangeFilter {...range} /></Suspense>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Omzet" value={rupiahShort(t.omzet)} hint={`${num(t.orders)} order · AOV ${rupiahShort(d.aov)}`} />
+        <Kpi label="Omzet" value={rupiahShort(t.omzet)} hint={`${num(t.orders)} order · AOV ${rupiahShort(d.aov)}${t.cancelled ? ` · ${num(t.cancelled)} batal` : ""}`} />
         <Kpi label="Omzet customer baru (O+F)" value={rupiahShort(t.omzet_o + t.omzet_f)} hint={`${num(acqOrders)} order`} />
         <Kpi label="Repeat order (R)" value={rupiahShort(t.omzet_r)} hint={`${pct(t.omzet ? t.omzet_r / t.omzet : null)} dari omzet`} />
         <Kpi label="Gagal kirim + retur" value={pct(d.failRate)} hint={`${num(t.failed)} dari ${num(t.shipped)} paket`} tone={d.failRate != null && d.failRate > 0.08 ? "bad" : undefined} />
@@ -31,6 +31,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         <Kpi label="MER akuisisi" value={ratio(d.merAcq)} hint={`MER total ${ratio(d.merTotal)}`} />
         <Kpi label="Biaya per customer baru" value={d.cac ? rupiahShort(d.cac) : "-"} hint="spend ÷ order O+F" />
         <Kpi label="COD terkirim, belum cair" value={rupiahShort(d.cod.unpaid)} hint={`${num(d.cod.unpaidCount)} paket`} tone={d.cod.unpaidCount > 0 ? "bad" : undefined} />
+        <Kpi label="Margin kotor (omzet − HPP)" value={pct(d.grossMargin)} hint={d.grossMargin != null ? `HPP tersedia di ${pct(d.costCoverage, 0)} order` : "impor order Globemerce untuk HPP"} />
+        <Kpi label="Estimasi laba kotor" value={d.estGross != null ? rupiahShort(d.estGross) : "-"} hint="omzet × margin kotor" />
+        <Kpi label="Estimasi laba setelah iklan" value={d.estAfterAds != null ? rupiahShort(d.estAfterAds) : "-"} hint="belum termasuk ongkir, gaji, dll." tone={d.estAfterAds != null && d.estAfterAds < 0 ? "bad" : undefined} />
+        <Kpi label="MER break-even (kasar)" value={ratio(d.breakEvenMer)} hint="1 ÷ margin kotor; target MER akuisisi minimal" />
       </div>
 
       <div className="mt-4">

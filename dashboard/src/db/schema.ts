@@ -76,6 +76,7 @@ export const orders = pgTable(
     paymentMethod: text("payment_method"), // TF / COD / QR / CC
     category: categoryEnum("category"),
     omzet: money("omzet").notNull().default(0),
+    productCost: money("product_cost"), // HPP (dari Globemerce)
     courier: text("courier"),
     shippingCost: money("shipping_cost"),
     insurance: money("insurance"),
@@ -86,6 +87,7 @@ export const orders = pgTable(
     notes: text("notes"),
     source: text("source").notNull().default("manual"), // manual / sheet / globemerce / import
     sourceRef: text("source_ref"), // kunci deduplikasi per sumber
+    altRefs: text("alt_refs").array().notNull().default([]), // kunci sumber lain yang sudah digabung ke order ini
     editedInApp: boolean("edited_in_app").notNull().default(false),
     createdBy: integer("created_by").references(() => users.id),
     createdAt: created(),
@@ -220,6 +222,33 @@ export const adSpendDaily = pgTable(
     linkClicks: integer("link_clicks").notNull().default(0),
   },
   (t) => [uniqueIndex("ad_spend_daily_uq").on(t.date, t.accountId)],
+);
+
+export const customers = pgTable(
+  "customers",
+  {
+    id: serial("id").primaryKey(),
+    source: text("source").notNull().default("globemerce"),
+    externalId: text("external_id").notNull(),
+    name: text("name"),
+    phone: text("phone"),
+    province: text("province"),
+    regency: text("regency"),
+    district: text("district"),
+    gender: text("gender"),
+    totalOrder: integer("total_order").notNull().default(0),
+    lastOrderDate: date("last_order_date"),
+    joinDate: date("join_date"),
+    productConsume: text("product_consume"),
+    tags: text("tags"),
+    customerSource: text("customer_source"),
+    updatedAt: updated(),
+  },
+  (t) => [
+    uniqueIndex("customers_source_ext_uq").on(t.source, t.externalId),
+    index("customers_phone_idx").on(t.phone),
+    index("customers_last_order_idx").on(t.lastOrderDate),
+  ],
 );
 
 export type Order = typeof orders.$inferSelect;

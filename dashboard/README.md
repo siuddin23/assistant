@@ -9,7 +9,8 @@ Web app untuk admin dan tim: satu database order yang terhubung ke **spreadsheet
 | **Pengiriman** | Paket tertahan (> 5 hari), belum dikirim, gagal, retur |
 | **Retur & gagal kirim** | Order gagal/retur yang belum ditindaklanjuti, catatan alasan, status, dan biaya retur |
 | **Rekonsiliasi COD** | Cocokkan nilai COD & ongkir per resi dengan laporan pencairan Everpro |
-| **Impor file** | Upload export Globemerce/Everpro (.xlsx/.csv). Kolom dikenali otomatis dan bisa disesuaikan |
+| **Customer** | 11 ribu+ customer Globemerce: repeat rate, dan daftar yang belum order lagi 30/60/90/180 hari (link WhatsApp) untuk follow up repeat order |
+| **Impor file** | Upload export Globemerce/Everpro/sheet (.xlsx/.csv). Kolom dikenali otomatis dan bisa disesuaikan |
 | **Integrasi** | Sinkron spreadsheet, URL & pemetaan webhook Globemerce, status data spend Meta |
 | **Pengaturan** | User & role, daftar CS, daftar produk |
 
@@ -25,51 +26,50 @@ Meta Ads ──job laporan harian (Python)──────────┤
 Input manual admin/CS ──────────────────────────┘
 ```
 
-- **Tanpa duplikat.** Sinkron dan impor aman diulang. Order dari sumber berbeda digabung otomatis bila resinya sama, atau bila no. HP, tanggal, dan omzetnya sama.
+- **Tanpa duplikat.** Sinkron dan impor aman diulang. Order dari sumber berbeda digabung otomatis bila resinya sama, atau bila no. HP dan omzetnya sama dengan selisih tanggal maksimal 3 hari. Penggabungan hanya mengisi kolom yang kosong (mis. HPP dari Globemerce, resi dari Everpro); data spreadsheet tidak ditimpa.
+- **Order batal** dari Globemerce disimpan terpisah dan tidak dihitung ke omzet.
 - **Edit di dashboard menang.** Order yang sudah diedit di dashboard tidak ditimpa sinkron sheet; hanya status pengirimannya yang tetap diperbarui.
 - **Data customer** (nama, alamat, HP) hanya bisa dilihat oleh user yang login.
 
-## Deploy (sekali saja, ±30 menit)
+## Deploy
 
-### 1. Database — Supabase (gratis)
-1. Buat project di [supabase.com](https://supabase.com) dan pilih region Singapore.
-2. Buka **Connect → Transaction pooler** dan salin connection string-nya. Ini menjadi `DATABASE_URL`.
+Project Vercel: **glowlab-dashboard** (tim Siuddin). Root Directory `dashboard`, terhubung ke repo GitHub ini.
+Setiap deploy otomatis menjalankan migrasi database (`vercel-build`) dan membuat admin pertama dari `ADMIN_EMAIL` / `ADMIN_PASSWORD` bila belum ada.
 
-### 2. Hosting — Vercel
-1. Di [vercel.com](https://vercel.com), import repo GitHub ini dan set **Root Directory** ke `dashboard`.
-2. Isi Environment Variables berikut (lihat `.env.example`):
+### Hubungkan database (sekali, ±2 menit)
+1. Buka project **glowlab-dashboard** di Vercel, lalu tab **Storage → Create Database → Neon (Serverless Postgres)**. Paket gratis cukup; pilih region Singapore.
+2. Di langkah *Connect project*, centang environment **Production** dan **Preview**. Vercel otomatis mengisi `DATABASE_URL`.
+3. Buka tab **Deployments**, klik ⋯ pada deployment terakhir, lalu pilih **Redeploy**. Migrasi dan admin pertama dibuat otomatis.
+4. Login dengan `ADMIN_EMAIL`. Setelah itu ganti password di **Pengaturan**, lalu hapus env `ADMIN_PASSWORD` dari Vercel.
+
+### Environment variables
 
 | Variabel | Isi |
 |---|---|
-| `DATABASE_URL` | dari Supabase |
-| `SESSION_SECRET` | string acak ≥ 32 karakter (`openssl rand -base64 48`) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON service account (sama dengan job laporan harian) |
+| `DATABASE_URL` | otomatis dari Neon (Vercel Storage) |
+| `SESSION_SECRET` | string acak ≥ 32 karakter |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | admin pertama (hapus password setelah login) |
 | `SPREADSHEET_ID` | `16Mla00sapW6GKX60kb5Wmaq6zaFDLHxISWxGT5pfy-0` |
-| `GLOBEMERCE_WEBHOOK_TOKEN` | string acak, menjadi bagian URL webhook |
-| `INGEST_TOKEN` | string acak, dipakai job Python untuk mengirim spend Meta |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON service account, untuk sinkron otomatis spreadsheet (opsional; tanpa ini upload tab sheet lewat Impor file) |
+| `GLOBEMERCE_WEBHOOK_TOKEN` | string acak, bagian dari URL webhook |
+| `INGEST_TOKEN` | string acak, untuk job Python mengirim spend Meta |
 | `CRON_SECRET` | string acak, untuk sinkron sheet terjadwal |
 
-3. Deploy.
+### Memasukkan data (menu Impor file)
 
-### 3. Siapkan database & user admin
-Jalankan sekali dari komputer Anda, dengan `DATABASE_URL` dari Supabase:
+| Jenis impor | File | Frekuensi |
+|---|---|---|
+| Spreadsheet DATABASE HARYS | download tab bulan (File → Download → .xlsx) | sampai sinkron otomatis aktif |
+| Order Globemerce | Globemerce → export **order list** (.csv) | harian |
+| Laporan order Everpro | Everpro → export **order report** (.csv) | harian |
+| Daftar customer Globemerce | Globemerce → **Customer List** (.xlsx) | mingguan |
 
-```bash
-cd dashboard
-npm install
-export DATABASE_URL="postgres://…"        # dari Supabase
-npm run db:migrate                         # buat tabel + data CS & produk awal
-npm run create-user -- email@anda.com "Nama Anda" passwordKuat admin
-```
+Urutan yang disarankan pertama kali: spreadsheet → Globemerce → Everpro → customer. Semua impor aman diulang tanpa membuat duplikat.
 
-User lain (CS, viewer) bisa ditambahkan dari menu **Pengaturan**.
-
-### 4. Hubungkan sumber data
-1. **Spreadsheet**: share sheet ke email service account (Viewer). Lalu buka **Integrasi → Sinkron sekarang** dan centang semua bulan untuk impor pertama.
-2. **Sinkron otomatis tiap jam**: di GitHub repo → Settings → Secrets → Actions, isi `DASHBOARD_URL` (URL Vercel, mis. `https://glowlab.vercel.app`) dan `CRON_SECRET`. Workflow *Sinkron spreadsheet ke dashboard* akan jalan tiap jam.
-3. **Globemerce**: salin URL webhook dari menu **Integrasi** ke pengaturan webhook Globemerce. Setelah order pertama masuk, petakan field-nya di halaman yang sama (sekali saja). Export file dari Globemerce juga bisa di-upload lewat **Impor file**.
-4. **Everpro**: download laporan pengiriman dan laporan pencairan COD, lalu upload di **Impor file**. Centang "Ingat pemetaan kolom" supaya impor berikutnya cukup pilih file.
-5. **Spend Meta Ads**: isi secret `DASHBOARD_URL` dan `INGEST_TOKEN` di GitHub. Job laporan harian akan mengirim spend ke dashboard setiap pagi.
+### Sinkron otomatis (opsional)
+1. **Spreadsheet tiap jam**: isi `GOOGLE_SERVICE_ACCOUNT_JSON` di Vercel, lalu share sheet ke email service account. Di GitHub repo → Settings → Secrets → Actions, isi `DASHBOARD_URL` dan `CRON_SECRET`.
+2. **Globemerce real-time**: salin URL webhook dari menu **Integrasi** ke pengaturan webhook Globemerce. Petakan field-nya sekali setelah event pertama masuk.
+3. **Spend Meta Ads harian**: isi secret `DASHBOARD_URL` dan `INGEST_TOKEN` di GitHub.
 
 ## Pengembangan lokal
 

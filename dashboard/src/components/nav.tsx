@@ -9,6 +9,7 @@ const ITEMS: { href: string; label: string; roles?: Role[] }[] = [
   { href: "/orders", label: "Order" },
   { href: "/shipping", label: "Pengiriman" },
   { href: "/returns", label: "Retur & gagal kirim" },
+  { href: "/customers", label: "Customer" },
   { href: "/reconciliation", label: "Rekonsiliasi COD", roles: ["admin", "viewer"] },
   { href: "/import", label: "Impor file", roles: ["admin"] },
   { href: "/integrations", label: "Integrasi", roles: ["admin"] },

@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.mts",
     "create-user": "tsx scripts/create-user.mts",
-    "sync-sheet": "tsx --conditions=react-server scripts/sync-sheet.mts"
+    "sync-sheet": "tsx --conditions=react-server scripts/sync-sheet.mts",
+    "vercel-build": "tsx scripts/migrate.mts && next build"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

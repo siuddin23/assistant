@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "alt_refs" text[] DEFAULT '{}' NOT NULL;

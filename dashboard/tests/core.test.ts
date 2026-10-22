@@ -3,6 +3,7 @@ import { normalizePhone, parseDate, parseDateTime, parseIdr } from "@/lib/parse"
 import { normalizeShipStatus, shouldUpdateStatus } from "@/lib/shipping";
 import { parseSheetRows } from "@/lib/sheet";
 import { guessMapping, missingRequired } from "@/lib/import-fields";
+import { parseItems } from "@/lib/parse";
 import { classify, summarize, type ReconRow } from "@/lib/reconcile";
 import { getPath, listPaths } from "@/lib/globemerce-paths";
 
@@ -13,6 +14,11 @@ describe("parse", () => {
     expect(parseIdr("1,989,000.50")).toBe(1989000.5);
     expect(parseIdr("29,9")).toBe(29.9);
     expect(parseIdr(150000)).toBe(150000);
+    expect(parseIdr("990000.000000")).toBe(990000);
+    expect(parseIdr("392500.5")).toBe(392500.5);
+    expect(parseIdr("0.000000")).toBe(0);
+    expect(parseIdr("1.500")).toBe(1500);
+    expect(parseIdr("54040050")).toBe(54040050);
     expect(parseIdr("#N/A")).toBe(0);
   });
   it("tanggal", () => {
@@ -91,6 +97,24 @@ describe("impor file", () => {
   });
   it("kolom wajib", () => {
     expect(missingRequired("orders", guessMapping("orders", ["Nama", "Alamat"]))).toEqual(["Tanggal order", "Total / omzet"]);
+  });
+});
+
+describe("format asli Globemerce & Everpro", () => {
+  it("item paket Globemerce", () => {
+    const codes = ["DVN", "SGLOW", "NOVIA", "EROJAN", "COFFIY", "BLZ", "EVN"];
+    expect(parseItems("INDO DVN\\V2 (1), INDO-SGLOW\\V1 (2), COURIER CHARGES (1)", codes)).toEqual([{ productCode: "DVN", qty: 1 }, { productCode: "SGLOW", qty: 2 }]);
+    expect(parseItems("INDO-NOVIA\\V1 (1), COURIER CHARGES (1)", codes)).toEqual([{ productCode: "NOVIA", qty: 1 }]);
+  });
+  it("kolom Globemerce: abaikan kolom kosong & pilih yang persis", () => {
+    const headers = ["o_id", "created", "created_at", "tracking_code", "tracking_code_2", "receiver_name", "receiver_mobile_prefix", "receiver_mobile", "total_price", "status", "is_repeating", "product_cost", "receiver_regency", "receiver_city"];
+    const sample = [["1", "2026-10-22 15:13", "", "C2LORHXY", "", "Kho", "62", "82180863770", "990000.000000", "Completed", "0", "392500.000000", "BANDAR LAMPUNG", ""]];
+    const m = guessMapping("orders", headers, sample);
+    expect(m).toMatchObject({ externalId: "o_id", orderDate: "created", awb: "tracking_code", customerName: "receiver_name", customerPhone: "receiver_mobile", omzet: "total_price", orderStatus: "status", isRepeat: "is_repeating", productCost: "product_cost", city: "receiver_regency" });
+  });
+  it("kolom Everpro: tax cod fee tidak tertukar dengan cod fee", () => {
+    const m = guessMapping("everpro_orders", ["AWB No.", "Status", "COD Value", "COD Fee", "Tax COD Fee", "COD Disbursement", "Status Pencairan COD", "Status Pencairan Cashback", "Shipping Price", "Shipping Price End Customer"]);
+    expect(m).toMatchObject({ awb: "AWB No.", status: "Status", codValue: "COD Value", codFee: "COD Fee", codTax: "Tax COD Fee", codDisbursement: "COD Disbursement", codStatus: "Status Pencairan COD", shippingCost: "Shipping Price" });
   });
 });
 

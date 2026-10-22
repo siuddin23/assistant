@@ -24,8 +24,12 @@ export async function dashboardData({ from, to }: Range) {
            count(*) filter (where payment_method = 'COD') as cod_orders,
            count(*) filter (where ship_status in ('gagal','retur')) as failed,
            count(*) filter (where awb is not null) as shipped,
-           count(*) filter (where ship_status = 'terkirim') as delivered
-    from orders where order_date between ${from} and ${to}`);
+           count(*) filter (where ship_status = 'terkirim') as delivered,
+           (select count(*) from orders where order_date between ${from} and ${to} and ship_status = 'batal') as cancelled,
+           coalesce(sum(omzet) filter (where product_cost is not null), 0) as omzet_with_cost,
+           coalesce(sum(product_cost), 0) as product_cost,
+           count(*) filter (where product_cost is not null and omzet > 0) as orders_with_cost
+    from orders where order_date between ${from} and ${to} and ship_status <> 'batal'`);
 
   const daily = await rows<Record<string, unknown>>(sql`
     select to_char(order_date, 'YYYY-MM-DD') as date,
@@ -34,7 +38,7 @@ export async function dashboardData({ from, to }: Range) {
            coalesce(sum(omzet) filter (where category = 'R'), 0) as r,
            coalesce(sum(omzet) filter (where category is null), 0) as other,
            count(*) filter (where omzet > 0) as orders
-    from orders where order_date between ${from} and ${to}
+    from orders where order_date between ${from} and ${to} and ship_status <> 'batal'
     group by order_date order by order_date`);
 
   const spendDaily = await rows<{ date: string; spend: unknown }>(sql`
@@ -43,7 +47,7 @@ export async function dashboardData({ from, to }: Range) {
   const spendMap = new Map(spendDaily.map((s) => [s.date, n(s.spend)]));
 
   const perCs = await rows<Record<string, unknown>>(sql`
-    select coalesce(cs_code, '?') as cs,
+    select coalesce(cs_code, '(tanpa CS)') as cs,
            count(*) filter (where omzet > 0) as orders,
            coalesce(sum(omzet), 0) as omzet,
            count(*) filter (where category = 'O' and omzet > 0) as o,
@@ -51,13 +55,13 @@ export async function dashboardData({ from, to }: Range) {
            count(*) filter (where category = 'R' and omzet > 0) as r,
            count(*) filter (where ship_status in ('gagal','retur')) as failed,
            count(*) filter (where awb is not null) as shipped
-    from orders where order_date between ${from} and ${to}
+    from orders where order_date between ${from} and ${to} and ship_status <> 'batal'
     group by 1 having count(*) filter (where omzet > 0) > 0 order by omzet desc`);
 
   const perProduct = await rows<Record<string, unknown>>(sql`
     select i.product_code as product, sum(i.qty) as qty, count(distinct o.id) as orders
     from order_items i join orders o on o.id = i.order_id
-    where o.order_date between ${from} and ${to}
+    where o.order_date between ${from} and ${to} and o.ship_status <> 'batal'
     group by 1 order by qty desc`);
 
   const shipStatus = await rows<{ status: string; count: unknown }>(sql`
@@ -77,8 +81,17 @@ export async function dashboardData({ from, to }: Range) {
   const acqOmzet = t.omzet_o + t.omzet_f;
   const acqOrders = t.orders_o + t.orders_f;
 
+  // Margin kotor dihitung dari order yang punya HPP, lalu diproyeksikan ke seluruh omzet.
+  const grossMargin = t.omzet_with_cost ? (t.omzet_with_cost - t.product_cost) / t.omzet_with_cost : null;
+  const estGross = grossMargin != null ? grossMargin * t.omzet : null;
+
   return {
     totals: t,
+    grossMargin,
+    costCoverage: t.orders ? t.orders_with_cost / t.orders : 0,
+    estGross,
+    estAfterAds: estGross != null && spend ? estGross - spend : null,
+    breakEvenMer: grossMargin ? 1 / grossMargin : null,
     spend,
     merAcq: spend ? acqOmzet / spend : null,
     merTotal: spend ? t.omzet / spend : null,

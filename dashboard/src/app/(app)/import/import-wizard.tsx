@@ -8,11 +8,9 @@ import { runImport } from "./actions";
 type Cell = string | number | boolean | Date | null;
 type Preset = { kind: string; name: string; mapping: Record<string, string> };
 
-const SOURCES: Record<ImportKind, string[]> = {
-  orders: ["globemerce", "lainnya"],
-  shipments: ["everpro", "lainnya"],
-  settlements: ["everpro", "lainnya"],
-};
+const MONTHS = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+const CHUNK = 1500; // baris per request (batas ukuran request di Vercel ±4,5 MB)
+const KIND_ORDER: ImportKind[] = ["orders", "everpro_orders", "customers", "sheet", "shipments", "settlements"];
 
 /** Baris judul = baris (dari 10 teratas) dengan sel teks terbanyak. Export Everpro kadang punya baris judul laporan di atasnya. */
 function detectHeaderRow(rows: Cell[][]) {
@@ -27,6 +25,8 @@ function detectHeaderRow(rows: Cell[][]) {
 export function ImportWizard({ presets }: { presets: Preset[] }) {
   const [kind, setKind] = useState<ImportKind>("orders");
   const [source, setSource] = useState("globemerce");
+  const [tab, setTab] = useState(MONTHS[new Date().getMonth()]);
+  const [progress, setProgress] = useState("");
   const [file, setFile] = useState<string>("");
   const [raw, setRaw] = useState<Cell[][]>([]);
   const [headerRow, setHeaderRow] = useState(0);
@@ -39,11 +39,12 @@ export function ImportWizard({ presets }: { presets: Preset[] }) {
   const headers = useMemo(() => (raw[headerRow] ?? []).map((h, i) => (h == null || String(h).trim() === "" ? `Kolom ${i + 1}` : String(h).trim())), [raw, headerRow]);
   const body = useMemo(() => raw.slice(headerRow + 1), [raw, headerRow]);
   const fields = IMPORT_KINDS[kind].fields;
-  const missing = missingRequired(kind, mapping);
+  const isSheet = kind === "sheet";
+  const missing = isSheet ? [] : missingRequired(kind, mapping);
 
-  function applyGuess(k: ImportKind, hs: string[]) {
+  function applyGuess(k: ImportKind, hs: string[], sample: Cell[][]) {
     const preset = presets.find((p) => p.kind === k && p.name === "default" && Object.values(p.mapping).every((h) => !h || hs.includes(h)));
-    setMapping(preset ? preset.mapping : guessMapping(k, hs));
+    setMapping(preset ? preset.mapping : guessMapping(k, hs, sample));
   }
 
   async function onFile(f: File) {
@@ -60,10 +61,10 @@ export function ImportWizard({ presets }: { presets: Preset[] }) {
         throw new Error("Format belum didukung. Simpan file sebagai .xlsx atau .csv (file .xls lama: buka di Excel lalu Save As .xlsx).");
       }
       if (!rows.length) throw new Error("File kosong");
-      const h = detectHeaderRow(rows);
+      const h = kind === "sheet" ? 0 : detectHeaderRow(rows);
       setRaw(rows);
       setHeaderRow(h);
-      applyGuess(kind, (rows[h] ?? []).map((x, i) => (x == null || String(x).trim() === "" ? `Kolom ${i + 1}` : String(x).trim())));
+      applyGuess(kind, (rows[h] ?? []).map((x, i) => (x == null || String(x).trim() === "" ? `Kolom ${i + 1}` : String(x).trim())), rows.slice(h + 1, h + 101));
     } catch (e) {
       setRaw([]);
       setError(e instanceof Error ? e.message : String(e));
@@ -73,9 +74,24 @@ export function ImportWizard({ presets }: { presets: Preset[] }) {
   function submit() {
     setError(""); setResult(null);
     start(async () => {
-      const res = await runImport({ kind, source, filename: file, headers, rows: body, mapping }, saveAs ? "default" : undefined);
-      if (res.ok) setResult(res.result);
-      else setError(res.error);
+      // Kirim hanya kolom yang dipetakan, dipecah per CHUNK baris.
+      const usedHeaders = isSheet ? [] : [...new Set(Object.values(mapping).filter(Boolean))];
+      const cols = usedHeaders.map((h) => headers.indexOf(h));
+      const data = isSheet ? raw : body.map((r) => cols.map((i) => r[i] ?? null));
+      const total: ImportResult = { batchId: 0, total: 0, inserted: 0, updated: 0, skipped: 0, unmatched: 0, errors: [] };
+      const step = isSheet ? data.length : CHUNK;
+      for (let i = 0; i < data.length; i += step) {
+        setProgress(data.length > step ? `Mengimpor ${Math.min(i + step, data.length)} / ${data.length} baris…` : "");
+        const res = await runImport(
+          { kind, source, filename: file, headers: usedHeaders, rows: data.slice(i, i + step), mapping, sheetTab: isSheet ? tab : undefined },
+          saveAs && i === 0 ? "default" : undefined,
+        );
+        if (!res.ok) { setError(`${res.error}${i ? ` (berhenti di baris ${i + 1}; baris sebelumnya sudah tersimpan)` : ""}`); setProgress(""); return; }
+        for (const k of ["total", "inserted", "updated", "skipped", "unmatched"] as const) total[k] += res.result[k];
+        total.errors.push(...res.result.errors);
+      }
+      setProgress("");
+      setResult(total);
     });
   }
 
@@ -88,32 +104,47 @@ export function ImportWizard({ presets }: { presets: Preset[] }) {
           <span className="label">1. Jenis data</span>
           <select className="input" value={kind} onChange={(e) => {
             const k = e.target.value as ImportKind;
-            setKind(k); setSource(SOURCES[k][0]); setResult(null);
-            if (raw.length) applyGuess(k, headers);
+            setKind(k); setSource(IMPORT_KINDS[k].sources[0]); setResult(null); setRaw([]); setFile("");
           }}>
-            {(Object.keys(IMPORT_KINDS) as ImportKind[]).map((k) => <option key={k} value={k}>{IMPORT_KINDS[k].label}</option>)}
+            {KIND_ORDER.map((k) => <option key={k} value={k}>{IMPORT_KINDS[k].label}</option>)}
           </select>
         </label>
-        <label className="block">
-          <span className="label">Sumber</span>
-          <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>
-            {SOURCES[kind].map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </label>
+        {isSheet ? (
+          <label className="block">
+            <span className="label">Tab bulan</span>
+            <select className="input" value={tab} onChange={(e) => setTab(e.target.value)}>
+              {MONTHS.map((m) => <option key={m}>{m}</option>)}
+            </select>
+          </label>
+        ) : (
+          <label className="block">
+            <span className="label">Sumber</span>
+            <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>
+              {IMPORT_KINDS[kind].sources.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </label>
+        )}
         <label className="block">
           <span className="label">2. File (.xlsx / .csv)</span>
-          <input className="input" type="file" accept=".xlsx,.csv,.txt" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+          <input key={kind} className="input" type="file" accept=".xlsx,.csv,.txt" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
         </label>
         <p className="text-xs text-muted sm:col-span-3">{IMPORT_KINDS[kind].description}</p>
       </div>
 
-      {raw.length > 0 && (
+      {raw.length > 0 && isSheet && (
+        <div className="card flex flex-wrap items-center gap-4 p-4">
+          <p className="text-sm text-muted">{raw.length} baris dibaca dari file. Data akan diimpor sebagai tab <b>{tab}</b>.</p>
+          <button className="btn-primary" disabled={pending} onClick={submit}>{pending ? "Mengimpor…" : `Impor tab ${tab}`}</button>
+        </div>
+      )}
+
+      {raw.length > 0 && !isSheet && (
         <div className="card space-y-4 p-4">
           <div className="flex flex-wrap items-end gap-3">
             <label className="block">
               <span className="label">Baris judul kolom</span>
               <input className="input !w-24" type="number" min={1} max={raw.length} value={headerRow + 1}
-                onChange={(e) => { const h = Math.max(0, Number(e.target.value) - 1); setHeaderRow(h); applyGuess(kind, (raw[h] ?? []).map((x, i) => (x == null || String(x).trim() === "" ? `Kolom ${i + 1}` : String(x).trim()))); }} />
+                onChange={(e) => { const h = Math.max(0, Number(e.target.value) - 1); setHeaderRow(h); applyGuess(kind, (raw[h] ?? []).map((x, i) => (x == null || String(x).trim() === "" ? `Kolom ${i + 1}` : String(x).trim())), raw.slice(h + 1, h + 101)); }} />
             </label>
             <p className="text-sm text-muted">{body.length} baris data · {headers.length} kolom</p>
           </div>
@@ -152,6 +183,7 @@ export function ImportWizard({ presets }: { presets: Preset[] }) {
         </div>
       )}
 
+      {progress && <div className="text-sm text-muted">{progress}</div>}
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-danger">{error}</div>}
       {result && (
         <div className="card p-4 text-sm">

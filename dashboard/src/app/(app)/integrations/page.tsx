@@ -42,11 +42,12 @@ export default async function IntegrationsPage() {
 
         <Section title="Everpro">
           <div className="space-y-2 p-4 text-sm text-muted">
-            <p>Everpro belum menyediakan API publik, jadi datanya masuk lewat <a className="text-accent underline" href="/import">Impor file</a>:</p>
+            <p>Everpro belum menyediakan API publik, jadi datanya masuk lewat <a className="text-accent underline" href="/import">Impor file</a> → <b>Laporan order Everpro</b> (export &quot;order report&quot;). Satu file itu memperbarui:</p>
             <ul className="list-disc pl-5">
-              <li><b>Status pengiriman</b>: export laporan pengiriman/resi untuk memperbarui status paket.</li>
-              <li><b>Pencairan COD &amp; ongkir</b>: export laporan pencairan untuk halaman Rekonsiliasi.</li>
+              <li>status pengiriman tiap resi, termasuk alasan gagal kirim dan retur;</li>
+              <li>COD yang sudah cair (Status Pencairan COD = Berhasil), untuk halaman Rekonsiliasi.</li>
             </ul>
+            <p>Disarankan upload setiap hari (rentang tanggal 1 bulan ini s/d hari ini).</p>
             <p>Kalau nanti Everpro memberi akses API, impor ini bisa diganti dengan sinkron otomatis.</p>
           </div>
         </Section>

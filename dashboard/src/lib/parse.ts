@@ -6,19 +6,26 @@ export function colIndex(letter: string): number {
   return n - 1;
 }
 
-/** "Rp1.989.000" -> 1989000 ; "29,9" -> 29.9 ; "" / "#N/A" -> 0. Angka asli dibiarkan. */
+/**
+ * Angka dari sheet/export: "Rp1.989.000" -> 1989000, "29,9" -> 29.9, "990000.000000" -> 990000,
+ * "1,989,000.50" -> 1989000.5. "" / "#N/A" -> 0. Angka asli dibiarkan.
+ */
 export function parseIdr(v: unknown): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   let s = String(v).replace(/[^0-9,.\-]/g, "");
-  if (!s) return 0;
-  // "1,989,000.50" (format US dari sebagian export) vs "1.989.000,50" (format ID)
-  const lastComma = s.lastIndexOf(",");
-  const lastDot = s.lastIndexOf(".");
-  if (lastDot > lastComma && /\.\d{1,2}$/.test(s) && s.includes(",")) {
-    s = s.replace(/,/g, "");
-  } else {
-    s = s.replace(/\./g, "").replace(",", ".");
+  if (!s || !/\d/.test(s)) return 0;
+  const dots = (s.match(/\./g) ?? []).length;
+  const commas = (s.match(/,/g) ?? []).length;
+  if (dots && commas) {
+    // Pemisah yang muncul terakhir adalah desimal.
+    s = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  } else if (dots) {
+    // Satu titik dengan bukan-3 digit di belakangnya = desimal ("990000.000000"); selain itu pemisah ribuan.
+    const after = s.length - s.lastIndexOf(".") - 1;
+    if (dots > 1 || after === 3) s = s.replace(/\./g, "");
+  } else if (commas) {
+    s = commas > 1 ? s.replace(/,/g, "") : s.replace(",", ".");
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -82,4 +89,20 @@ export function clean(v: unknown): string | null {
 export function normalizeAwb(v: unknown): string | null {
   const s = clean(v);
   return s ? s.replace(/\s+/g, "").toUpperCase() : null;
+}
+
+/**
+ * "INDO DVN\V2 (1), INDO-SGLOW\V1 (2), COURIER CHARGES (1)" -> [{DVN,1},{SGLOW,2}]
+ * Kode produk dicocokkan dari nama (huruf saja); item yang tidak dikenali diabaikan.
+ */
+export function parseItems(text: unknown, codes: string[]): { productCode: string; qty: number }[] {
+  const out = new Map<string, number>();
+  for (const part of String(text ?? "").split(",")) {
+    const m = part.match(/^(.*?)\((\d+)\)\s*$/);
+    const name = (m ? m[1] : part).toUpperCase().replace(/[^A-Z]/g, "");
+    const qty = m ? Number(m[2]) : 1;
+    const code = codes.find((c) => name.includes(c.toUpperCase().replace(/[^A-Z]/g, "")));
+    if (code && qty > 0) out.set(code, (out.get(code) ?? 0) + qty);
+  }
+  return [...out].map(([productCode, qty]) => ({ productCode, qty }));
 }
